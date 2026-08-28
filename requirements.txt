@@ -1,0 +1,5 @@
+yfinance
+binance-connector
+openai
+python-dotenv
+requests
