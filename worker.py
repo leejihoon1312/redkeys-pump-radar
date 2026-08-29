@@ -11,7 +11,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-NASDAQ_SYMBOLS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMD", "META", "PLTR", "QQQ"]
+# Hem büyük devler hem de 0.3 / küçük-orta ölçekli hareketli Nasdaq varlıkları
+NASDAQ_SYMBOLS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMD", "META", "PLTR", "SOFI", "RIVN", "DKNG", "MARA", "RIOT", "QQQ"]
 
 def send_telegram(text):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
@@ -38,12 +39,13 @@ def analyze_nasdaq():
             avg_volume = df['Volume'].iloc[-20:-1].mean()
             last_volume = df['Volume'].iloc[-1]
 
-            if last_close >= recent_high * 0.99 and last_volume > avg_volume * 1.5:
+            # Eşiği 0.3'e düşürdük, daha küçük hacim dalgalanmalarını da yakalayacak
+            if last_close >= recent_high * 0.98 and last_volume > avg_volume * 0.3:
                 prompt = f"""
-                Nasdaq hissesi {symbol} kritik direnç bölgesini test ediyor!
+                Nasdaq varlığı {symbol} direnç bölgesine yaklaşıyor!
                 Son Fiyat: {last_close:.2f}
                 Son Zirve Direnci: {recent_high:.2f}
-                Hacim Durumu: Normal ortalamanın %{(last_volume/avg_volume)*100:.0f} katı.
+                Hacim Durumu: Normal ortalamanın %{(last_volume/avg_volume)*100:.0f} kadarı.
                 
                 Bunu profesyonel bir borsa traderı gözüyle kısaca yorumla:
                 1. Direnci kırma ihtimali nedir?
@@ -59,13 +61,13 @@ def analyze_nasdaq():
                     analysis = response.choices[0].message.content
                     send_telegram(f"🚨 *NASDAQ HACİM ALARMI: {symbol}*\n\n{analysis}")
                 else:
-                    send_telegram(f"🚨 *{symbol}* direnç bölgesinde hacim patlatıyor! Fiyat: {last_close}")
+                    send_telegram(f"🚨 *{symbol}* direnç bölgesinde hareketli! Fiyat: {last_close}")
         except Exception as e:
             print(f"{symbol} analiz hatası: {e}")
 
 async def main():
     print("RedKeys Nasdaq Radar Worker Başlatıldı...", flush=True)
-    send_telegram("🔔 *Nasdaq Hacim ve Direnç Radar* devrede! Piyasalar taranıyor...")
+    send_telegram("🔔 *Nasdaq Hacim ve Direnç Radar* güncellendi! 7/24 aktif tarama devrede...")
     
     while True:
         try:
