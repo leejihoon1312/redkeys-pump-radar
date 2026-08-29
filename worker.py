@@ -11,8 +11,13 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-# Büyük devler yerine alt segment, küçük/orta ölçekli ve potansiyel barındıran Nasdaq small-cap / growth hisseleri
 NASDAQ_SYMBOLS = ["SOUN", "IONQ", "BBAI", "CLSK", "HUT", "BITF", "HIMS", "MARA", "RIOT", "PLTR", "SOFI", "DKNG", "RIVN"]
+
+# Yahoo'nun bot korumasını (Invalid Crumb / 401) aşmak için tarayıcı kimliği tanımlıyoruz
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
 def send_telegram(text):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
@@ -28,7 +33,8 @@ def analyze_nasdaq():
     print("Küçük/Orta ölçekli Nasdaq taraması yapılıyor...", flush=True)
     for symbol in NASDAQ_SYMBOLS:
         try:
-            ticker = yf.Ticker(symbol)
+            # Oturumu yfinance'e vererek bot engellerini bypass ediyoruz
+            ticker = yf.Ticker(symbol, session=session)
             df = ticker.history(period="5d", interval="15m")
             
             if df.empty or len(df) < 10:
@@ -39,7 +45,6 @@ def analyze_nasdaq():
             avg_volume = df['Volume'].iloc[-20:-1].mean()
             last_volume = df['Volume'].iloc[-1]
 
-            # Henüz patlamamış, dipte sessizce hacim toplayan veya direnci yoklayanlar
             if last_close >= recent_high * 0.98 and (avg_volume * 0.2 <= last_volume <= avg_volume * 0.8):
                 prompt = f"""
                 Küçük/Orta ölçekli Nasdaq varlığı {symbol} henüz patlamadı, dipte sıkışıyor!
@@ -64,7 +69,7 @@ def analyze_nasdaq():
 
 async def main():
     print("RedKeys Küçük Ölçekli Radar Başlatıldı...", flush=True)
-    send_telegram("🔔 *Küçük Ölçekli Nasdaq Radarı* devrede! Artık devler değil, patlamaya namzet alt hisseler taranıyor.")
+    send_telegram("🔔 *Küçük Ölçekli Nasdaq Radarı* tarama motoru güncellendi!")
     
     while True:
         try:
