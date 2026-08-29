@@ -1,5 +1,6 @@
 import time
 import os
+import asyncio
 import requests
 import yfinance as yf
 from openai import OpenAI
@@ -23,9 +24,7 @@ def send_telegram(text):
         print(f"Telegram hata: {e}")
 
 def analyze_nasdaq():
-    print("Nasdaq hacim ve direnç taraması başlıyor...", flush=True)
-    send_telegram("🔔 *Nasdaq Hacim ve Direnç Radar* devrede! Piyasalar taranıyor...")
-
+    print("Nasdaq hacim ve direnç taraması yapılıyor...", flush=True)
     for symbol in NASDAQ_SYMBOLS:
         try:
             ticker = yf.Ticker(symbol)
@@ -64,5 +63,17 @@ def analyze_nasdaq():
         except Exception as e:
             print(f"{symbol} analiz hatası: {e}")
 
+async def main():
+    print("RedKeys Nasdaq Radar Worker Başlatıldı...", flush=True)
+    send_telegram("🔔 *Nasdaq Hacim ve Direnç Radar* devrede! Piyasalar taranıyor...")
+    
+    while True:
+        try:
+            analyze_nasdaq()
+        except Exception as e:
+            print(f"Tarama döngü hatası: {e}")
+        # Her 15 dakikada bir piyasayı tekrar tara
+        await asyncio.sleep(900)
+
 if __name__ == "__main__":
-    analyze_nasdaq()
+    asyncio.run(main())
