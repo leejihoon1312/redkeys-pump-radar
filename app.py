@@ -21,7 +21,7 @@ def test_telegram():
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": "🚨 Test Başarılı! RedKeys Pump Radar Telegram bağlantısı sağlam ve çalışıyor."
+        "text": "🚨 Test Başarılı! RedKeys Nasdaq Radar Telegram bağlantısı sağlam ve çalışıyor."
     }
     res = requests.post(url, json=payload)
     return f"Telegram test mesajı gönderildi! Sunucu yanıtı: {res.status_code}"
