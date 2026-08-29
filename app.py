@@ -3,7 +3,7 @@ import threading
 import asyncio
 import os
 import requests
-from worker import main as run_worker
+from worker import main as run_worker, analyze_nasdaq
 
 app = Flask(__name__)
 
@@ -25,6 +25,14 @@ def test_telegram():
     }
     res = requests.post(url, json=payload)
     return f"Telegram test mesajı gönderildi! Sunucu yanıtı: {res.status_code}"
+
+@app.route('/scan')
+def manual_scan():
+    try:
+        analyze_nasdaq()
+        return "Manuel tarama tetiklendi! Kriterlere uyan hisseler varsa Telegram'a bildirim gönderildi."
+    except Exception as e:
+        return f"Tarama hatası: {e}", 500
 
 def start_bot():
     asyncio.run(run_worker())
