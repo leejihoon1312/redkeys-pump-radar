@@ -3,6 +3,7 @@ import os
 import asyncio
 import requests
 import yfinance as yf
+from datetime import datetime, timedelta
 from openai import OpenAI
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -13,11 +14,14 @@ client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 NASDAQ_SYMBOLS = ["SOUN", "IONQ", "BBAI", "CLSK", "HUT", "BITF", "HIMS", "MARA", "RIOT", "PLTR", "SOFI", "DKNG", "RIVN"]
 
-# Yahoo'nun bot korumasını (Invalid Crumb / 401) aşmak için tarayıcı kimliği tanımlıyoruz
 session = requests.Session()
 session.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 })
+
+# Aynı hissenin sürekli spam atmasını önlemek için hafıza (Aynı hisseye 4 saat içinde bir daha bildirim gitmez)
+last_alert_times = {}
+COOLDOWN_HOURS = 4
 
 def send_telegram(text):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
@@ -31,9 +35,15 @@ def send_telegram(text):
 
 def analyze_nasdaq():
     print("Küçük/Orta ölçekli Nasdaq taraması yapılıyor...", flush=True)
+    now = datetime.now()
+    
     for symbol in NASDAQ_SYMBOLS:
         try:
-            # Oturumu yfinance'e vererek bot engellerini bypass ediyoruz
+            # Cooldown kontrolü: Bu hisseye yakın zamanda alarm atıldıysa atla
+            if symbol in last_alert_times:
+                if now - last_alert_times[symbol] < timedelta(hours=COOLDOWN_HOURS):
+                    continue
+
             ticker = yf.Ticker(symbol, session=session)
             df = ticker.history(period="5d", interval="15m")
             
@@ -64,19 +74,23 @@ def analyze_nasdaq():
                     )
                     analysis = response.choices[0].message.content
                     send_telegram(f"🚨 *SESSİZ / POTANSİYEL HİSSE: {symbol}*\n\n{analysis}")
+                    
+                    # Alarm atıldığı an zamanı kaydet ki bir süre rahat bıraksın
+                    last_alert_times[symbol] = now
         except Exception as e:
             print(f"{symbol} analiz hatası: {e}")
 
 async def main():
-    print("RedKeys Küçük Ölçekli Radar Başlatıldı...", flush=True)
-    send_telegram("🔔 *Küçük Ölçekli Nasdaq Radarı* tarama motoru güncellendi!")
+    print("RedKeys Radar Spam Korumasıyla Başlatıldı...", flush=True)
+    send_telegram("🔔 *Radar Aktif:* Aynı hisseye 4 saat içinde tekrar bildirim atılmayacak şekilde spam koruması eklendi.")
     
     while True:
         try:
             analyze_nasdaq()
         except Exception as e:
             print(f"Tarama döngü hatası: {e}")
-        await asyncio.sleep(900)
+        # Her 10 dakikada bir tarama
+        await asyncio.sleep(600)
 
 if __name__ == "__main__":
     asyncio.run(main())
